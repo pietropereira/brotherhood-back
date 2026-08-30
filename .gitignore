@@ -1,0 +1,45 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript and Builds
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables (Crucial para não vazar senhas do banco)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pid
+*.pid
+*.seed
+*.pid.lock
+
+# IDEs and Editors (Ignora os caches do Cursor, VS Code e extensões de IA)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# Operating System Files
+Thumbs.db
+Ehthumbs.db
+Desktop.ini
+.DS_Store
+
+src/generated/

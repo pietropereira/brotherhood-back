@@ -1,0 +1,60 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  nickname  String   @unique // 🟢 ANONIMATO: O nome que aparecerá nos tópicos e chats para proteger o usuário!
+  avatarUrl String?  // Link de um avatar padrão (ex: desenhos/icones) para não expor fotos reais
+  createdAt DateTime @default(now())
+
+  topics   Topic[]   @relation("UserTopics")
+  messages Message[] @relation("UserMessages")
+  chats    Chat[]    @relation("UserChats")
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  category  String   // ex: "Relacionamentos", "Carreira", "Ansiedade"
+  createdAt DateTime @default(now())
+  
+  authorId  String
+  author    User     @relation("UserTopics", fields: [authorId], references: [id], onDelete: Cascade)
+
+  chats     Chat[]   @relation("TopicChats")
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  topicId   String
+  topic     Topic    @relation("TopicChats", fields: [topicId], references: [id], onDelete: Cascade)
+
+  // O participante é o homem que iniciou a conversa privada com o autor do tópico
+  participantId String
+  participant   User   @relation("UserChats", fields: [participantId], references: [id], onDelete: Cascade)
+
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  senderId  String
+  sender    User     @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
