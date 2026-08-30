@@ -154,4 +154,47 @@ export class ChatController {
     return res.status(500).json({ error: 'Erro interno ao listar conversas.' });
   }
 }
+
+// 📜 4. Carregar o histórico completo de mensagens de um chat específico
+  async getChatMessages(req: Request, res: Response): Promise<Response> {
+    const { chatId } = req.params; // Lemos o ID do chat direto da URL (ex: /chats/ID/messages)
+    const userId = req.user.id;    // Usuário logado
+
+    try {
+      // 1. Busca o chat para validar se quem está pedindo o histórico pertence à conversa
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { topic: true }
+      });
+
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat privado não encontrado.' });
+      }
+
+      // 2. Trava de segurança: só o leitor ou o autor do tópico podem ver as mensagens
+      if (chat.participantId !== userId && chat.topic.authorId !== userId) {
+        return res.status(403).json({ error: 'Você não tem permissão para ver este histórico.' });
+      }
+
+      // 3. Busca todas as mensagens daquele chat específico
+      const messages = await prisma.message.findMany({
+        where: { chatId },
+        orderBy: {
+          createdAt: 'asc' // Mensagens antigas primeiro, simulando a timeline de um chat real
+        },
+        include: {
+          sender: {
+            select: {
+              nickname: true,
+              avatarUrl: true
+            }
+          }
+        }
+      });
+
+      return res.json(messages);
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro interno ao carregar mensagens.' });
+    }
+  }
 }
