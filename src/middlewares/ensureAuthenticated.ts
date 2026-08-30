@@ -19,14 +19,25 @@ export function ensureAuthenticated(
     return res.status(401).json({ error: 'Token JWT ausente.' });
   }
 
-  const [, token] = authHeader.split(' ');
+  // Divide o "Bearer <token>" tratando espaços extras
+  const parts = authHeader.split(' ');
+
+  if (parts.length !== 2) {
+    return res.status(401).json({ error: 'Token mal formatado.' });
+  }
+
+  const [scheme, token] = parts;
+
+  // Garante que a palavra Bearer está ali, independente de maiúscula/minúscula
+  if (!/^Bearer$/i.test(scheme)) {
+    return res.status(401).json({ error: 'Token mal formatado.' });
+  }
 
   try {
     const decoded = verify(token, authConfig.jwt.secret);
 
     const { sub } = decoded as ITokenPayload;
 
-    // Injeta de forma segura o ID obtido do 'sub' para os próximos passos
     req.user = {
       id: sub,
     };
