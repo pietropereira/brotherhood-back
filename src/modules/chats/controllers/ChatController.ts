@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../../prisma/client';
-
+ import { io } from '../../../server';
 export class ChatController {
   // 🟢 1. Iniciar ou recuperar um Chat Privado a partir de um Tópico
   async create(req: Request, res: Response): Promise<Response> {
@@ -81,21 +81,24 @@ export class ChatController {
       }
 
       // Cria a mensagem atrelada ao chat
-      const message = await prisma.message.create({
-        data: {
-          content,
-          chatId,
-          senderId,
-        },
-        include: {
-          sender: {
-            select: {
-              nickname: true,
-              avatarUrl: true,
-            },
+    const message = await prisma.message.create({
+      data: {
+        content,
+        chatId,
+        senderId,
+      },
+      include: {
+        sender: {
+          select: {
+            nickname: true,
+            avatarUrl: true,
           },
         },
-      });
+      },
+    });
+
+    // 🔌 2. EMISSÃO CORRIGIDA: Agora passamos o objeto 'message' completo e populado para a sala do socket!
+    io.to(chatId).emit('new_message', message);
 
       return res.status(201).json(message);
     } catch (error) {
@@ -191,7 +194,7 @@ export class ChatController {
           }
         }
       });
-
+      
       return res.json(messages);
     } catch (error) {
       return res.status(500).json({ error: 'Erro interno ao carregar mensagens.' });
