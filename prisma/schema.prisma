@@ -18,6 +18,7 @@ model User {
   topics   Topic[]   @relation("UserTopics")
   messages Message[] @relation("UserMessages")
   chats    Chat[]    @relation("UserChats")
+  reports   Report[]
 }
 
 model Topic {
@@ -31,6 +32,7 @@ model Topic {
   author    User     @relation("UserTopics", fields: [authorId], references: [id], onDelete: Cascade)
 
   chats     Chat[]   @relation("TopicChats")
+  reports   Report[]
 }
 
 model Chat {
@@ -57,4 +59,17 @@ model Message {
 
   senderId  String
   sender    User     @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  reason    String   // Motivo da denúncia (ex: Discurso de ódio, Spam, etc)
+  createdAt DateTime @default(now())
+
+  // Relações
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  reporterId String
+  reporter   User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
 }
