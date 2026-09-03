@@ -107,59 +107,56 @@ export class ChatController {
   }
 
   async listMyChats(req: Request, res: Response): Promise<Response> {
-  const userId = req.user.id;
+    const userId = req.user.id;
 
-  try {
-    const chats = await prisma.chat.findMany({
-      where: {
-        OR: [
-          { participantId: userId },          // Chats que eu iniciei como leitor
-          { topic: { authorId: userId } }      // Chats iniciados por outros no meu desabafo
-        ]
-      },
-      include: {
-        topic: {
-          select: {
-            id: true,
-            title: true,
-            category: true,
-            author: {
-              select: {
-                nickname: true,
-                avatarUrl: true
-              }
+    try {
+      const chats = await prisma.chat.findMany({
+        where: {
+          OR: [
+            { participantId: userId },
+            { topic: { authorId: userId } }
+          ]
+        },
+        include: {
+          topic: {
+            include: {
+              author: { select: { nickname: true, avatarUrl: true } }
             }
-          }
-        },
-        participant: {
-          select: {
-            nickname: true,
-            avatarUrl: true
-          }
-        },
-        // Opcional: Traz a última mensagem trocada para renderizar o preview na tela
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-            content: true,
-            createdAt: true
+          },
+          participant: { select: { nickname: true, avatarUrl: true } },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1 // Traz apenas a última mensagem para preview e cálculo
           }
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+      });
 
-    return res.json(chats);
-  } catch (error) {
-    return res.status(500).json({ error: 'Erro interno ao listar conversas.' });
+      // 🔴 A MÁGICA DO CONTADOR: Mapeia os chats injetando se há mensagens não lidas
+      const formattedChats = chats.map(chat => {
+        const isAuthor = chat.topic.authorId === userId;
+        const lastRead = isAuthor ? chat.lastReadByAuthor : chat.lastReadByParticipant;
+        
+        const lastMessage = chat.messages[0];
+        
+        // Tem não lida se: existe mensagem, ela NÃO foi enviada por mim, E o createdAt dela é mais novo que o meu lastRead
+        const hasUnread = lastMessage && 
+                          lastMessage.senderId !== userId && 
+                          new Date(lastMessage.createdAt) > new Date(lastRead);
+
+        return {
+          ...chat,
+          hasUnread: !!hasUnread // Retorna true ou false
+        };
+      });
+
+      return res.json(formattedChats);
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro ao buscar conversas.' });
+    }
   }
-}
 
 // 📜 4. Carregar o histórico completo de mensagens de um chat específico
-  async getChatMessages(req: Request, res: Response): Promise<Response> {
+async getChatMessages(req: Request, res: Response): Promise<Response> {
     const { chatId } = req.params; // Lemos o ID do chat direto da URL (ex: /chats/ID/messages)
     const userId = req.user.id;    // Usuário logado
 
@@ -183,7 +180,7 @@ export class ChatController {
       const messages = await prisma.message.findMany({
         where: { chatId },
         orderBy: {
-          createdAt: 'asc' // Mensagens antigas primeiro, simulando a timeline de um chat real
+          createdAt: 'desc' // Mensagens antigas primeiro, simulando a timeline de um chat real
         },
         include: {
           sender: {
@@ -198,6 +195,37 @@ export class ChatController {
       return res.json(messages);
     } catch (error) {
       return res.status(500).json({ error: 'Erro interno ao carregar mensagens.' });
+    }
+  }
+
+    async markAsRead(req: Request, res: Response): Promise<Response> {
+    const { id: chatId } = req.params;
+    const userId = req.user.id; // ID do usuário logado vindo do JWT
+
+    try {
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { topic: true }
+      });
+
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat não encontrado.' });
+      }
+
+      // 🕵️‍♂️ Descobre se quem abriu a tela é o autor do desabafo ou o participante de apoio
+      const isAuthor = chat.topic.authorId === userId;
+
+      // Atualiza a data de leitura da pessoa correspondente para o momento atual (now)
+      await prisma.chat.update({
+        where: { id: chatId },
+        data: isAuthor 
+          ? { lastReadByAuthor: new Date() } 
+          : { lastReadByParticipant: new Date() }
+      });
+
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro interno ao atualizar leitura.' });
     }
   }
 }

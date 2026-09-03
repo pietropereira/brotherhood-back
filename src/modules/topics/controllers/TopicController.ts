@@ -103,5 +103,30 @@ export class TopicController {
       return res.status(500).json({ error: 'Erro interno ao carregar o feed.' });
     }
   }
+
+  async delete(req: Request, res: Response): Promise<Response> {
+  const { id } = req.params;
+  const userId = req.user.id; // ID de quem está logado extraído do JWT
+
+  try {
+    const topic = await prisma.topic.findUnique({ where: { id } });
+
+    if (!topic) {
+      return res.status(404).json({ error: 'Desabafo não encontrado.' });
+    }
+
+    // 🔒 TRAVA DE SEGURANÇA: Só o autor do post (ou o Admin) pode deletar
+    if (topic.authorId !== userId) {
+      return res.status(403).json({ error: 'Você não tem permissão para apagar este desabafo.' });
+    }
+
+    // Deleta o tópico. O banco limpa chats, mensagens e denúncias atreladas automaticamente via Cascade
+    await prisma.topic.delete({ where: { id } });
+
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro interno ao excluir desabafo.' });
+  }
+}
 }
 

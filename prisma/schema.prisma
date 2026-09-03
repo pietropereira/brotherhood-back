@@ -39,6 +39,9 @@ model Chat {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
 
+  lastReadByAuthor      DateTime @default(now())
+  lastReadByParticipant DateTime @default(now())
+
   topicId   String
   topic     Topic    @relation("TopicChats", fields: [topicId], references: [id], onDelete: Cascade)
 
