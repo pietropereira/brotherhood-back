@@ -31,24 +31,24 @@ export class TopicController {
 
   // 🔵 Listar todos os tópicos (Feed Público com Anonimato)
  async list(req: Request, res: Response): Promise<Response> {
-    const { category } = req.query;
+    // 💡 Captura a página atual dos Query Params (se não enviar, assume a página 1)
+    const { category, page = 1 } = req.query;
     
+    const limit = 10; // Blocos fixos de 10 em 10 posts para performance comercial
+    const skip = (Number(page) - 1) * limit;
+
     const authHeader = req.headers.authorization;
     let loggedUserId: string | null = null;
 
     if (authHeader) {
       const [, token] = authHeader.split(' ');
       try {
-        // 🛡️ Executa a verificação usando a função nativa correta
         const decoded = verify(token, authConfig.jwt.secret);
-        
-        // Garante que o sub exista e joga no nosso ID logado
         if (decoded && decoded.sub) {
           loggedUserId = String(decoded.sub);
         }
       } catch (err) {
-        // Se o token expirar ou falhar, ignora silenciosamente e trata como deslogado
-        console.log("Erro na verificação opcional do token no feed:", err.message);
+        // Ignora erros de token e trata como deslogado
       }
     }
 
@@ -56,8 +56,6 @@ export class TopicController {
       const topics = await prisma.topic.findMany({
         where: {
           category: category ? String(category) : undefined,
-
-          // Se descobrimos o ID do usuário logado através do token, filtra os denunciados
           ...(loggedUserId ? {
             reports: {
               none: {
@@ -66,6 +64,9 @@ export class TopicController {
             }
           } : {})
         },
+        // ⚡ REGRA DA PAGINAÇÃO COMERCIAL
+        take: limit,
+        skip: skip,
         orderBy: {
           createdAt: 'desc'
         },
