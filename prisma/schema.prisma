@@ -13,8 +13,8 @@ model User {
   password  String
   nickname  String   @unique // 🟢 ANONIMATO: O nome que aparecerá nos tópicos e chats para proteger o usuário!
   avatarUrl String?  // Link de um avatar padrão (ex: desenhos/icones) para não expor fotos reais
+  isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
-
   topics   Topic[]   @relation("UserTopics")
   messages Message[] @relation("UserMessages")
   chats    Chat[]    @relation("UserChats")
