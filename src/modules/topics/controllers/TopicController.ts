@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../prisma/client';
 import { verify } from 'jsonwebtoken';
 import { authConfig } from '../../../config/auth';
+import server = require('../../../server');
 
 export class TopicController {
   // 🟢 Criar um novo tópico (Desabafo)
@@ -19,11 +20,28 @@ export class TopicController {
           title,
           content,
           category,
-          authorId,
+          authorId: req.user.id, // Garante que o authorId vá na raiz
         },
       });
 
-      return res.status(201).json(topic);
+      const populatedTopic = await prisma.topic.findUnique({
+        where: { id: topic.id },
+        include: {
+          author: {
+            select: {
+              nickname: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+
+      if (populatedTopic) {
+        server.io.emit('new_topic_published', populatedTopic);
+        console.log(`📢 [Socket] Novo desabafo emitido globalmente: "${populatedTopic.title}"`);
+      }
+
+      return res.status(201).json(populatedTopic);
     } catch (error) {
       return res.status(500).json({ error: 'Erro interno ao criar tópico.' });
     }
