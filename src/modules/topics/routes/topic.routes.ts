@@ -11,5 +11,6 @@ const reportController = new ReportController();
 topicRoutes.post('/', ensureAuthenticated, topicController.create); // Protegida por Token
 topicRoutes.get('/', topicController.list); // Pública para a comunidade ler
 topicRoutes.post('/report', ensureAuthenticated, reportController.create);
+topicRoutes.delete('/:id', ensureAuthenticated, topicController.delete);
 
 export { topicRoutes };
