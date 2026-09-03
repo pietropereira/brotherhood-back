@@ -30,12 +30,12 @@ export class LoginController {
           expiresIn: authConfig.jwt.expiresIn,
         }
       );
-
       return res.json({
         user: {
           id: user.id,
           nickname: user.nickname,
           avatarUrl: user.avatarUrl,
+          isAdmin: user.isAdmin,
         },
         token,
       });
